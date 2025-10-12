@@ -7,6 +7,7 @@ Installation
 -------------
 
 Please install lcSV with the following command:
+
 `pip install lcsv`
 
 Running lcSV
