@@ -20,7 +20,7 @@ Dependencies
 
 LcSV supports Python 3.8+.
 
-Installation requires [numpy](https://numpy.org/), [pandas](https://pandas.pydata.org/), [matplotlib](https://matplotlib.org/), [seaborn](https://seaborn.pydata.org/), [statsmodels](https://statsmodels.org/), and [scipy](https://scipy.org/).
+Installation requires [numpy](https://numpy.org/), [pandas](https://pandas.pydata.org/), [matplotlib](https://matplotlib.org/), [statsmodels](https://statsmodels.org/), and [scipy](https://scipy.org/).
 
 Citation
 ------------

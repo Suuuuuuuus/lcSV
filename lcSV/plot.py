@@ -11,79 +11,19 @@ import pickle
 import multiprocessing
 import subprocess
 import resource
-import itertools
-from itertools import combinations_with_replacement
-import collections
-import sqlite3
-import random
 
-import pyranges as pr
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.random import default_rng
-import scipy as sp
 import pandas as pd
-import statsmodels.api as sm
-import seaborn as sns
-from sklearn.decomposition import PCA
 import matplotlib.colors as mcolors
-import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
-from matplotlib.ticker import FuncFormatter
 from matplotlib.lines import Line2D
 
-from scipy.stats import nbinom
-from scipy.stats import geom, beta
-from scipy.special import logsumexp
-
 from .model import *
+from .process import *
 
 __all__ = [
     "plot_sv_coverage", "plot_training", "plot_sv_coverage_by_gt"
 ]
-
-
-def plot_sv_coverage(cov, chromosome, start, end, flank, calling_dict, side = 'both', tick_step = 0.1):
-    means, _ = normalise_by_flank(cov, start, end, flank, side = side)
-    
-    region = cov[(cov['position'] >= start) & (cov['position'] <= end)]
-    region['position'] = region['position']/1e6
-    
-    colors = plt.get_cmap(CATEGORY_CMAP_STR).colors[:10]
-    colors = [mcolors.to_hex(c) for c in colors]
-    
-    all_samples = np.array([s.split(':')[0] for s in cov.columns[1:-1]])
-
-    for i, k in enumerate(calling_dict.keys()):
-        samples = calling_dict[k]
-        for s in samples:
-            index = np.where(all_samples == s)[0][0]
-            
-            if k == (0,0):
-                plt.plot(region['position'], region[f'{s}:coverage']/means[index], alpha = 1, color = '0.8')
-            else:
-                plt.plot(region['position'], region[f'{s}:coverage']/means[index], alpha = 1, color = colors[i - 1])
-   
-    ticks = get_ticks(region, tick_step)
-    if tick_step == 0.001:
-        plt.xticks(ticks, [f"{int(tick*1000)}" for tick in ticks], rotation = 45)
-        plt.xlabel(f'Chromosome {chromosome} (Kb)')
-    else:
-        plt.xticks(ticks, [f"{tick:.{int(np.log10(1/tick_step))}f}" for tick in ticks], rotation = 45)
-        plt.xlabel(f'Chromosome {chromosome} (Mb)')
-
-    color_handles = []
-    color_index = [0,0]
-    for i, k in enumerate(calling_dict.keys()):
-        if k != (0,0):
-            color_handles.append(Line2D([0], [0], color=colors[i-1], label=k))
-
-    legend1 = plt.legend(handles=color_handles, loc='upper left', prop={'size': 10}, framealpha=1)
-    legend1.get_title().set_fontsize(9)
-    plt.gca().add_artist(legend1)
-
-    plt.ylabel('Coverage (X)')
-    return None
 
 def plot_training(results, show_legends = True):
     L = len(results['model_ary'][0].haps[0])
@@ -115,7 +55,7 @@ def plot_training(results, show_legends = True):
     y1_ext = (y1_max - y1_min)/3
     ax1.set_ylim((y1_min - y1_ext, y1_max + y1_ext))
 
-    colors = plt.get_cmap(CATEGORY_CMAP_STR).colors[:n_haps]
+    colors = plt.get_cmap('tab20').colors[:n_haps]
     colors = [mcolors.to_hex(c) for c in colors]
 
     ax2 = ax1.twinx()
@@ -146,37 +86,59 @@ def plot_training(results, show_legends = True):
         legend2.get_title().set_fontsize(10)
         plt.gca().add_artist(legend2)   
         legend2.get_frame().set_zorder(2)
+        
+    plt.show()
     return None
 
-def plot_sv_coverage_by_gt(cov, chromosome, start, end, flank, calling_dict, side = 'both', tick_step = 0.1):
-    means, _ = normalise_by_flank(cov, start, end, flank, side = side)
+def plot_sv_coverage(means, coverage, samples, calling_dict):
+    region = coverage/means[np.newaxis,:]
     
-    region = cov[(cov['position'] >= start) & (cov['position'] <= end)]
-    region['position'] = region['position']/1e6
-    region.iloc[:,1:-1] = region.iloc[:,1:-1]/means[np.newaxis,:]
-    
-    if len(calling_dict.keys()) > 10:
-        print('Only region with less than 3 different haplotypes can be printed.')
-        return None
-    
-    colors = plt.get_cmap(CATEGORY_CMAP_STR).colors[:10]
+    colors = plt.get_cmap('tab20').colors[:10]
     colors = [mcolors.to_hex(c) for c in colors]
     
-    all_samples = np.array([s.split(':')[0] for s in region.columns[1:-1]])
+    xaxis = np.arange(coverage.shape[0])
+    
+    fig = plt.figure(figsize = (6,4))
+    
     for i, k in enumerate(calling_dict.keys()):
-        samples = calling_dict[k]
-        indices = np.where(np.isin(all_samples, samples))[0] + 1
-        
-        tmp = pd.concat([region.iloc[:, 0], region.iloc[:,indices]], axis = 1)
-        plt.plot(tmp['position'], tmp.iloc[:,1:].mean(axis = 1), alpha = 1, color = colors[i])
-   
-    ticks = get_ticks(region, tick_step)
-    if tick_step == 0.001:
-        plt.xticks(ticks, [f"{int(tick*1000)}" for tick in ticks], rotation = 45)
-        plt.xlabel(f'Chromosome {chromosome} (Kb)')
-    else:
-        plt.xticks(ticks, [f"{tick:.{int(np.log10(1/tick_step))}f}" for tick in ticks], rotation = 45)
-        plt.xlabel(f'Chromosome {chromosome} (Mb)')
+        tmp_samples = calling_dict[k]
+        for s in tmp_samples:
+            index = np.where(samples == s)[0][0]
+            
+            if k == (0,0):
+                plt.plot(xaxis, region[:, index], alpha = 1, color = '0.8')
+            else:
+                plt.plot(xaxis, region[:, index], alpha = 1, color = colors[i - 1])
+
+    color_handles = []
+    color_index = [0,0]
+    for i, k in enumerate(calling_dict.keys()):
+        if k != (0,0):
+            color_handles.append(Line2D([0], [0], color=colors[i-1], label=k))
+
+    legend1 = plt.legend(handles=color_handles, loc='upper left', prop={'size': 10}, framealpha=1)
+    legend1.get_title().set_fontsize(9)
+    plt.gca().add_artist(legend1)
+
+    plt.ylabel('Coverage (X)')
+    plt.show()
+    return None
+
+def plot_sv_coverage_by_gt(means, coverage, samples, calling_dict):
+    region = coverage/means[np.newaxis,:]
+    
+    if len(calling_dict.keys()) > 10:
+        print('Only region with less than 4 different haplotypes can be printed.')
+        return None
+    
+    colors = plt.get_cmap('tab20').colors[:10]
+    colors = [mcolors.to_hex(c) for c in colors]
+    xaxis = np.arange(coverage.shape[0])
+    
+    for i, k in enumerate(calling_dict.keys()):
+        tmp_samples = calling_dict[k]
+        indices = np.where(np.isin(samples, tmp_samples))[0]
+        plt.plot(xaxis, region[:,indices].mean(axis = 1), alpha = 1, color = colors[i])
 
     color_handles = []
     color_index = [0,0]
@@ -188,4 +150,5 @@ def plot_sv_coverage_by_gt(cov, chromosome, start, end, flank, calling_dict, sid
     plt.gca().add_artist(legend1)
 
     plt.ylabel('Coverage (X)')
+    plt.show()
     return None

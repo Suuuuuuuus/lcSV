@@ -11,45 +11,29 @@ import pickle
 import multiprocessing
 import subprocess
 import resource
-import itertools
-from itertools import combinations_with_replacement
-import collections
-import sqlite3
-import random
 
-import pyranges as pr
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import default_rng
-import scipy as sp
 import pandas as pd
-import statsmodels.api as sm
-import seaborn as sns
-from sklearn.decomposition import PCA
-import matplotlib.colors as mcolors
-import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
-from matplotlib.ticker import FuncFormatter
-from matplotlib.lines import Line2D
-
-from scipy.stats import nbinom
-from scipy.stats import geom, beta
-from scipy.special import logsumexp
 
 from .model import *
+from .compute import *
+from .evaluate import *
 
 __all__ = ["lcSV_core"]
 
 
 
-def lcSV_core(means, variances, covs,
+def lcSV_core(means,  # An np.array of length N of non-SV mean coverage
+             variances,  # An np.array of length N of non-SV variance coverage
+             covs,  # An np.array of shape (LxN) of SV region coverage
              ploidy = 2, 
-             n_iter = 100, 
-             n_sample_freq = 200, 
-             n_recomb = 1000,
+             n_iter = 100,  # Maximum number of iterations allowed
+             n_sample_freq = 200,  # Number of new frequency sampled in each iter
+             n_recomb = 1000,  # Number of new haplotype sampled in each iter
              bin_size = 1000,
              max_cnv = 10,
-             min_threshold = 0.01,
+             xy = 0.01,
              verbose = False,
              adaptive = False,
              premature = True):
@@ -89,7 +73,7 @@ def lcSV_core(means, variances, covs,
                 model = copy.deepcopy(reference_model)
                 model.freqs = dirichlet_sampling(model.freqs)
                 model.normalise()
-                if sum(np.array(model.freqs) >= min_threshold) > 1:
+                if sum(np.array(model.freqs) >= xy) > 1:
                     models.append(model)
 
         for _ in range(this_recomb):
@@ -182,29 +166,3 @@ def sample_recombinants(model, L, max_cnv = 10):
     if np.any(new_hap >= max_cnv):
         new_hap = np.ones(L)
     return new_hap
-
-def run_inverse_length_penalty(hap):
-    penalty = 0
-    run_length = 1
-    for i in range(1, len(hap)):
-        if hap[i] == hap[i - 1]:
-            run_length += 1
-        else:
-            penalty += 1 / run_length
-            run_length = 1
-    penalty += 1 / run_length
-    return penalty
-
-def generate_diploid_profiles(model):
-    n_haps = len(model.haps)
-    result = SVModel([], [])
-    
-    for i in range(n_haps):
-        for j in range(i, n_haps):
-            hap = model.haps[i] + model.haps[j]
-            freq = model.freqs[i]*model.freqs[j]*(1+(i!=j))
-            
-            result.haps.append(hap)
-            result.freqs.append(freq)
-    result.normalise()
-    return result

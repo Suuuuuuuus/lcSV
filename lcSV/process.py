@@ -11,33 +11,15 @@ import pickle
 import multiprocessing
 import subprocess
 import resource
-import itertools
-from itertools import combinations_with_replacement
-import collections
-import random
 
-import pyranges as pr
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import default_rng
-import scipy as sp
 import pandas as pd
-import statsmodels.api as sm
-import seaborn as sns
-from sklearn.decomposition import PCA
-import matplotlib.colors as mcolors
-import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
-from matplotlib.ticker import FuncFormatter
-from matplotlib.lines import Line2D
-
-from scipy.stats import nbinom
-from scipy.stats import geom, beta
 from scipy.special import logsumexp
 
 from .model import *
 
-__all__ = ["deresolute_windows", "delineate_region", "assess_bins", "extract_target_cov", "normalise_by_flank_naive", "normalise_by_flank_with_map", "call_sv_samples"]
+__all__ = ["deresolute_windows", "delineate_region", "assess_bins", "extract_target_cov", "normalise_by_flank_naive", "normalise_by_flank_with_map", "call_sv_samples", "generate_diploid_profiles", "run_inverse_length_penalty"]
 
 def deresolute_windows(df, window_size, normalise = False):
     len_window = int(df.iloc[1,0] - df.iloc[0,0])
@@ -158,3 +140,29 @@ def call_sv_samples(samples, genotypes):
         else:
             results[g] = [samples[i]]
     return dict(sorted(results.items()))
+
+def generate_diploid_profiles(model):
+    n_haps = len(model.haps)
+    result = SVModel([], [])
+    
+    for i in range(n_haps):
+        for j in range(i, n_haps):
+            hap = model.haps[i] + model.haps[j]
+            freq = model.freqs[i]*model.freqs[j]*(1+(i!=j))
+            
+            result.haps.append(hap)
+            result.freqs.append(freq)
+    result.normalise()
+    return result
+
+def run_inverse_length_penalty(hap):
+    penalty = 0
+    run_length = 1
+    for i in range(1, len(hap)):
+        if hap[i] == hap[i - 1]:
+            run_length += 1
+        else:
+            penalty += 1 / run_length
+            run_length = 1
+    penalty += 1 / run_length
+    return penalty

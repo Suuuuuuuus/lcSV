@@ -14,29 +14,14 @@ import resource
 import itertools
 from itertools import combinations_with_replacement
 import collections
-import sqlite3
-import random
 
-import pyranges as pr
-import matplotlib.pyplot as plt
 import numpy as np
-from numpy.random import default_rng
-import scipy as sp
 import pandas as pd
-import statsmodels.api as sm
-import seaborn as sns
-from sklearn.decomposition import PCA
-import matplotlib.colors as mcolors
-import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
-from matplotlib.ticker import FuncFormatter
-from matplotlib.lines import Line2D
 
-from scipy.stats import nbinom
-from scipy.stats import geom, beta
 from scipy.special import logsumexp
 
 from .model import *
+from .process import *
 
 __all__ = ["multi_evaluate_model", "evaluate_per_hap", "normalise_ll", "get_best_haps", "evaluate_sim_model", "evaluate_real_model"]
 
