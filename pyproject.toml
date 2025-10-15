@@ -3,7 +3,7 @@ requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "lcSV"
+name = "lcSVpy"
 version = "0.0.1"
 description = "Low-coverage structural variant (lcSV)"
 authors = [{name = "Sus", email = "bjzzp01@163.com"}]
