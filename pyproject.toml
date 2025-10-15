@@ -45,3 +45,9 @@ exclude = ["doc/_static/*.svg"]
 filterwarnings = [
    "ignore:The --rsyncdir command line argument and rsyncdirs config variable are deprecated.:DeprecationWarning",
  ]
+
+[tool.hatch.build.targets.wheel]
+include = ["lcSV/**"]
+
+[tool.hatch.build.targets.sdist]
+include = ["lcSV/**", "README.md", "LICENSE"]
